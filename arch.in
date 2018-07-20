@@ -1,0 +1,275 @@
+#!/bin/bash
+#
+#########################################################################
+#########################################################################
+##############     AUTOR:Charles Willy de Oliveira Moura    #############
+##############         DATA:21/06/2018 as 11:51 Am          #############
+##############     MANUTENÇÃO:Charles  CODNOME:LOGMAROCK    #############
+##############         EMAIL:ztecharles12@gmail.com         #############
+#########################################################################
+#########################################################################
+                      #############################
+                      #############################
+#########################################################################
+############################## VERÇÃO 1.0 ###############################
+#       DESTINADO A AUXILIAR A INSTALAÇÂO DO SISTEMA PARA USUARIOS      #
+#                        INICIANTES NO ARCH LINUX                       #
+#########################################################################
+
+#########################################################################
+
+#########################################################################
+#                                                                       #
+#                           NOTAS DE VERÇAO:                            #
+#    v.1.0.0 -Verção Definitiva                                         #
+#                                                                       #
+#                                                                       #
+#########################################################################
+
+
+if [[ $1 = @(-h|--help) ]]; then
+  sed -n '/^#.*uso.*/p' ${0##*/} | tr -d '#\|'
+  exit $(( $# ? 0 : 1 ))
+fi
+
+
+clear
+cat <<EOL
+
+        ================================================
+               Bem-vindo ao Installer Arch Linux!
+        ================================================
+
+        AVISO IMPORTANTE:
+        ================
+        
+            Esse Instalador assume que você deseja instalar o Arch Linux
+            em todo seu HD (Disco Rígido). E irá instalar, além da partição 
+            'root' também uma partição de 'boot' e a 'swap'. Outra coisa,
+            é necessário que seu disco esteja vazio, sem nehuma partição
+            criada, para deletar rode:
+            
+            	dd if=/dev/zero of=/dev/sda bs=512 count=1 conv=notrunc
+            	
+            Se não deseja essa estrutura no seu HD ou se deseja manter possíveis 
+            sistemas, se existirem,
+            
+            tecle: n
+            
+            Para sair do instalador para utilizar outros modelos de instalação que
+            é possível configurar as partições do Disco Rígido (HD).
+            
+            DESEJA REALMENTE INICIAR A INSTALAÇÃO ? [S/n]:
+            
+    
+EOL
+
+setterm -cursor off
+echo -ne "\n "
+read -n 1 INSTALAR
+clear
+cat <<STI
+
+                          ================================================
+                                       INSTALANDO O ARCH LINUX           
+                          ================================================    
+
+STI
+
+if [[ "$INSTALAR" != @(S|s) ]]; then
+	exit $?
+fi
+
+_criar_particoes(){
+	PART=$(fdisk -l | sed -n 1p | cut -d: -f2 | cut -d, -f1 | tr -d a-zA-Z" ")
+    NOME=$(fdisk -l | sed -n 1p | grep '/dev/...' | sed 's/.*\/dev\///g' | sed 's/\:.*//g')
+    RAIZ=$(( $PART - 2 ))
+    (echo n; echo p; echo; echo; echo "+$RAIZ""G";echo w) | fdisk /dev/$NOME
+    (echo n; echo p; echo; echo; echo "+200""M";echo w) | fdisk /dev/$NOME
+    (echo n; echo p; echo; echo; echo; echo t; echo; echo 82; echo w) | fdisk /dev/$NOME
+}
+
+ctrl_c(){
+	echo
+	setterm -cursor on
+	exit $?
+}
+
+_r='\e[31;1m';_n='\e[36;1m';_w='\e[37;1m';_g='\e[32;1m'
+_y='\e[33;1m';_p='\e[35;1m';_o='\e[m';_XX='_XX'
+
+
+
+_s(){
+	for i in $(seq 1 $1); do 
+		_XX=$_XX'_XX'		
+	done
+	echo -en $_XX | sed 's/_XX/ /g'
+}
+
+_bs(){
+	for i in $(seq 1 $1); do 
+		_XX=$_XX'_XX'		
+	done
+	echo -en $_XX | sed 's/_XX/\\b/g'
+}
+
+declare -x _msg=("Configurando o teclado...."
+				 "Testando a internet......."
+				 "Checando o relógio........"
+				 "Criando as partições......"
+				 "Formatando o root........."
+				 "Formatando a swap........."
+				 "Formatando o boot........."
+				 "Ativando a swap..........."
+				 "Montando o root em /mnt..."
+				 "Criando /mnt/boot........."
+				 "Montando sda2 em boot....."
+				 "Instalando o básico......."
+				 "Gerando a /et/fstab......."
+				 "Configurando o horário...."
+				 "Definindo o idioma........"
+				 "Gerando o idioma.........."
+				 "Configurando o idioma....."
+				 "Configurando o teclado...."
+				 "Definindo o hostname......"
+				 "Definindo virtual host...."
+				 "Copiando a img do Kernel.."
+				 "Baixado o grub............"
+				 "Instalando o grub na MBR.."
+				 "Adiconando opções ao grub."
+				 "Configurando o grub......."
+				 "Instalando o dhcpcd......."
+				 "Habilitando o dhcpcd......")
+
+declare -x _cmd=("loadkeys br-abnt2"
+				 "ping -c1 www.google.com"
+				 "timedatectl set-ntp true"
+				 "_criar_particoes"
+				 "mkfs.ext4 /dev/sda1"
+				 "mkswap /dev/sda3"
+				 "mkfs.ext4 /dev/sda2"
+				 "swapon /dev/sda3"
+				 "mount /dev/sda1 /mnt"
+				 "mkdir /mnt/boot"
+				 "mount /dev/sda2 /mnt/boot"
+				 "pacstrap /mnt base"
+				 "genfstab -U /mnt >> /mnt/etc/fstab"
+				 "ln -sf /usr/share/zoneinfo/Brazil/East /etc/localtime"
+				 "echo 'pt_BR.UTF-8 UTF-8' >> /etc/locale.gen"
+				 "echo 'LANG=pt_BR.UTF-8' > /etc/locale.conf"
+				 "locale-gen"
+				 "echo 'KEYMAP=br-abnt2' > /etc/vconsole.conf"
+				 "echo 'arch' > /etc/hostname"
+				 "echo -e '127.0.0.1\tlocalhost\n::1\tlocalhost\n127.0.1.1\tarch.linux\tarch\n' > /etc/hosts"
+				 "mkinitcpio -p linux"
+				 "pacman -S grub --noconfirm"
+				 "grub-install --target=i386-pc --recheck /dev/sda"
+				 "pacman -S os-prober --noconfirm"
+				 "grub-mkconfig -o /boot/grub/grub.cfg"
+				 "pacman -S dhcpcd --noconfirm"
+				 "systemctl enable dhcpcd")
+
+_throbber_do(){
+	setterm -cursor off
+	echo -ne "  "
+	z=1
+	trap ctrl_c SIGINT SIGTERM
+	while [[ "$z" -lt "100" ]]; do	
+		if [[ "$z" -lt "50" ]]; then
+		    echo -ne "\b\e[30;1m█\e[m█"
+		    if [[ "$z" -lt "30" ]]; then
+		        sleep 0.01
+		    else
+		        sleep 0.03
+		    fi
+		else
+		    echo -ne " \b█\e[30;1m█\e[m\b\b\b"
+		    if [[ "$z" -lt "70" ]]; then
+		        sleep 0.01
+		    else
+		        sleep 0.03
+		    fi
+		fi    
+		let z=z+1
+		if [[ "$z" -gt "98" ]]; then
+		    z=1
+		fi
+		echo -en "\c"
+	done 2>/dev/null
+}
+
+_run(){
+	{
+		while true
+		do
+			trap "exit" SIGUSR1	
+			_throbber_do	
+		done; } &
+		pid=$!
+}
+
+_instalador(){
+	
+	for i in {0..12}; do
+		
+		echo -en " $_y➜$_o " ; echo -en ${_msg[$i]}
+		_run
+		
+		
+		sleep 2 ; eval ${_cmd[$i]} >> /tmp/$i.log 2>/tmp/$i.log
+	
+	
+		if [[ "$?" == "0" ]]; then
+			echo -en $(_s 100)
+			echo -en "$(_bs 100)"" $_g✔$_o ${_msg[$i]}$(_s 50 | sed 's/ /./g')$_o$_g[$_n""ok$_g]$_o$(_s 50)"
+			echo
+			kill -USR1 $pid
+			wait $pid
+			trap EXIT
+		else
+			echo -en $(_s 100)
+			echo -en "$(_bs 100)"" $_r✖$_o ${_msg[$i]}$(_s 50 | sed 's/ /./g')$_o$_r[erro]$_o$(_s 50)"
+			echo -e "\nVerifique o 'log' em /tmp/$i.log"
+			setterm -cursor on
+			kill -USR1 $pid
+			wait $pid
+			trap EXIT
+			exit $?
+		fi
+	
+	done
+}
+
+_instalador
+
+
+sed -n '/^ctrl_c/,/^_instalador$/p' arch.in > /mnt/continue-arch.in
+sed -i 's/{0\.\.12}/{13..26}/' /mnt/continue-arch.in
+echo -e "hwclock -w\nexit" >> /mnt/continue-arch.in
+sed -i '1i\#\!\/bin\/bash\n' /mnt/continue-arch.in
+chmod +x /mnt/continue-arch.in
+arch-chroot /mnt ./continue-arch.in
+
+_eoi(){
+trap EXIT
+cat <<EOI
+
+		==================================
+		INSTALAÇÃO COMPLETADA COM SUCESSO!
+		==================================
+	
+		Retire o disco/iso do drive de CD/DVD e aperte [ ENTER ]
+		--------------------------------------------------------
+	
+EOI
+
+rm /mnt/continue-arch.in
+umount -Rl /mnt
+swapoff /dev/sda3
+setterm -cursor on
+read -n 1 ENTER
+reboot
+exit $?
+}
+_eoi
